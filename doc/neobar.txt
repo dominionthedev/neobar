@@ -132,7 +132,7 @@ The edgebar's WIDTH is controlled by edgy's own `options.right.size`
 (or `options.left.size`), not by anything per-view — this matters if
 you're customizing edgy's own setup() call alongside other edgebar
 views (Trouble, neo-tree, etc. sharing the same right/left edgebar).
-neobar's own plugin spec sets `options.right.size = 2` to match its
+neobar's own plugin spec sets `options.right.size = 3` to match its
 window's actual content width (one space plus one glyph).
 
 vim:tw=78:ts=8:noet:ft=help:norl:
