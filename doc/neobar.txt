@@ -1,0 +1,138 @@
+*neobar.txt*    A thin, VSCode-style activity bar for Neovim
+
+==============================================================================
+CONTENTS                                                     *neobar-contents*
+
+    1. Introduction ........................... |neobar-introduction|
+    2. Setup .................................. |neobar-setup|
+    3. Commands ............................... |neobar-commands|
+    4. Configuration ........................... |neobar-config|
+    5. Adapters ................................ |neobar-adapters|
+    6. Edgy.nvim integration .................... |neobar-edgy|
+
+==============================================================================
+1. Introduction                                          *neobar-introduction*
+
+Neobar is a thin vertical icon bar, docked to the edge of the screen,
+that dispatches to tools you already have — a file explorer, git, your
+plugin manager, and (as adapters are added) diagnostics, a debugger,
+a test runner, and a task runner. It does not reimplement any of
+those tools. Each icon is backed by a small adapter that knows how to
+open the real tool and how to ask it "are you currently open" so
+neobar can highlight the icon accordingly.
+
+Neobar does not draw its own dock — it relies on |edgy.nvim| (or your
+own docking setup, if you disable that integration) to place its
+window at the edge of the screen and keep it pinned there.
+
+==============================================================================
+2. Setup                                                        *neobar-setup*
+
+Minimal lazy.nvim spec: >lua
+    {
+        "dominionthedev/neobar",
+        dependencies = {
+            "MunifTanjim/nui.nvim",
+            "folke/edgy.nvim",
+        },
+        opts = {},
+    }
+<
+With no |neobar-config| options at all, neobar registers every
+built-in adapter that's actually implemented (see |neobar-adapters|)
+and opens its pinned edgy view automatically on |VimEnter|.
+
+nui.nvim is a hard dependency (used for rendering each icon row).
+edgy.nvim is only required if |neobar-config| has `edgy = true` (the
+default) — set it to `false` if you don't have edgy.nvim installed or
+want to manage docking yourself.
+
+==============================================================================
+3. Commands                                                  *neobar-commands*
+
+                                                                      *:Neobar*
+:Neobar             Open neobar's window directly, bypassing edgy. Mostly
+                     useful for testing or if you've set `edgy = false`.
+
+                                                                *:NeobarToggle*
+:NeobarToggle        Close neobar's window if it's currently open, otherwise
+                     open it.
+
+==============================================================================
+4. Configuration                                                *neobar-config*
+
+Pass options via the `opts` table in your lazy.nvim spec, or call
+`require("neobar").setup(opts)` directly. >lua
+    require("neobar").setup({
+        edgy = true,
+        slots = {
+            explorer = { enabled = true },
+            git = { enabled = true },
+            plugins = { enabled = true },
+            diagnostics = { enabled = true },
+            debug = { enabled = true },
+            test = { enabled = true },
+            run = { enabled = true },
+        },
+    })
+<
+                                                                  *neobar.edgy*
+edgy~
+    Type: `boolean`  Default: `true`
+
+    When `true`, neobar registers a |VimEnter| autocmd that calls
+    `require("edgy").open("right")` so its pinned view appears at
+    startup without you needing to open it yourself. Set to `false`
+    if edgy.nvim isn't installed, or if you'd rather call
+    `require("edgy").open(...)` yourself at a time of your choosing.
+
+                                                                 *neobar.slots*
+slots~
+    Type: `table<string, {enabled: boolean}>`
+
+    Per-slot enable/disable. All seven named slots
+    (explorer/git/plugins/diagnostics/debug/test/run) default to
+    `enabled = true`, but a slot only actually appears in the bar if
+    BOTH its `enabled` flag is true AND a real adapter exists for it
+    — see |neobar-adapters|. Disabling a slot that has no adapter yet
+    has no visible effect either way.
+
+==============================================================================
+5. Adapters                                                  *neobar-adapters*
+
+An adapter is the small piece of code that knows how to open one
+underlying tool and how to check whether it's currently open. As of
+this release, three of the seven planned slots have a real adapter:
+
+    explorer    Snacks.explorer() / Snacks.picker.get({source="explorer"})
+    git         Snacks.lazygit() / scans Snacks.terminal.list() for a
+                live instance launched with a "lazygit" command
+    plugins     require("lazy.view").show() / .visible()
+
+    diagnostics, debug, test, run — not implemented yet. Their icons
+    and slot names exist in the config schema and icon set already so
+    enabling them later doesn't require a config migration, but
+    activating their slot right now does nothing because there's no
+    adapter to dispatch to.
+
+Each adapter is intentionally small and self-contained — neobar's
+window/rendering code never talks to Snacks, lazy.nvim, or anything
+else directly, only to the adapter's `open()`/`is_open()` functions.
+
+==============================================================================
+6. Edgy.nvim integration                                          *neobar-edgy*
+
+Neobar's window is a plain floating window with `filetype = "neobar"`
+— edgy.nvim relocates and docks ANY window matching a filetype it's
+been told about, regardless of how that window was created, so this
+works without neobar needing to know anything about edgy's internals
+beyond contributing one view entry.
+
+The edgebar's WIDTH is controlled by edgy's own `options.right.size`
+(or `options.left.size`), not by anything per-view — this matters if
+you're customizing edgy's own setup() call alongside other edgebar
+views (Trouble, neo-tree, etc. sharing the same right/left edgebar).
+neobar's own plugin spec sets `options.right.size = 2` to match its
+window's actual content width (one space plus one glyph).
+
+vim:tw=78:ts=8:noet:ft=help:norl:
