@@ -97,10 +97,11 @@ function M.render()
         local is_active = adapter.is_open()
 
         local line = NuiLine()
-        -- one leading space, not two — keeps this a genuinely thin
-        -- bar rather than wasting half the width on padding
+        -- one space on each side of the glyph — width=3 below is
+        -- sized exactly for this (" " + glyph + " " = 3 cells)
         line:append(" ")
         line:append(entry.icon, is_active and "NeobarIconActive" or "NeobarIcon")
+        line:append(" ")
 
         line:render(M.buf, NS, i)
     end
@@ -179,9 +180,14 @@ function M.open()
 
     local buf = ensure_buf()
 
-    -- width=2 is the real minimum that fits what render() actually
-    -- writes per row (" " + one glyph = 2 display cells).
-    local width = 2
+    -- width=3 fits what render() writes per row (" " + glyph + " " =
+    -- 3 display cells). This MUST stay in sync with two other places:
+    -- the per-row padding in render() just above, and edgy.nvim's own
+    -- options.right.size in the consuming dotfiles' plugin spec for
+    -- edgy — that field controls the actual edgebar dock width and
+    -- doesn't read this value automatically. See README/doc for the
+    -- view-vs-edgebar size distinction if that's not obvious.
+    local width = 3
 
     M.win = vim.api.nvim_open_win(buf, false, {
         relative = "editor",
