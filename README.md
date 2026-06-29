@@ -78,6 +78,16 @@ One non-obvious thing worth knowing if you're also customizing edgy yourself: th
 
 nui.nvim is used for `nui.line`/`nui.text` — rendering each icon row with per-segment highlighting in one call instead of hand-rolling `nvim_buf_add_highlight` per row. The window itself is a plain `vim.api.nvim_open_win` call, not `nui.split`. edgy.nvim works on any window regardless of how it was created, so going straight to the API gives direct control over exactly what edgy needs (the filetype) without an extra layer in between.
 
+## Testing
+
+```sh
+nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/neobar/"
+```
+
+Requires `plenary.nvim` and `nui.nvim` already installed wherever your plugin manager puts them (`tests/minimal_init.lua` globs `~/.local/share/nvim/lazy/*` by default).
+
+Most of the suite (`config_spec`, `init_spec`, `adapters_spec`, `window_spec`) tests the registry, config merging, adapter contracts, and rendering in isolation, using stub adapters rather than the real Snacks/lazy.nvim calls. `adapters_live_spec` exercises the *real* `is_open()` functions and reports itself as **pending** (not failing) if `Snacks`/`lazy.nvim` aren't loaded — that's expected outside a full Neovim session with the actual plugin set installed.
+
 ## Full documentation
 
 `:help neobar` once installed, or see [`doc/neobar.txt`](doc/neobar.txt).

@@ -1,0 +1,47 @@
+local config = require("neobar.config")
+
+describe("neobar.config", function()
+    describe("resolve()", function()
+        it("returns the full defaults when called with no opts", function()
+            local resolved = config.resolve()
+            assert.are.same(true, resolved.edgy)
+            assert.are.same(true, resolved.slots.explorer.enabled)
+            assert.are.same(true, resolved.slots.git.enabled)
+            assert.are.same(true, resolved.slots.plugins.enabled)
+            assert.are.same(true, resolved.slots.diagnostics.enabled)
+            assert.are.same(true, resolved.slots.debug.enabled)
+            assert.are.same(true, resolved.slots.test.enabled)
+            assert.are.same(true, resolved.slots.run.enabled)
+        end)
+
+        it("returns the full defaults when called with an empty table", function()
+            local resolved = config.resolve({})
+            assert.are.same(true, resolved.edgy)
+            assert.are.same(true, resolved.slots.explorer.enabled)
+        end)
+
+        it("overrides only the specified top-level field", function()
+            local resolved = config.resolve({ edgy = false })
+            assert.are.same(false, resolved.edgy)
+            -- slots should still be untouched defaults
+            assert.are.same(true, resolved.slots.explorer.enabled)
+        end)
+
+        it("overrides only the specified slot, leaving siblings default", function()
+            local resolved = config.resolve({ slots = { git = { enabled = false } } })
+            assert.are.same(false, resolved.slots.git.enabled)
+            assert.are.same(true, resolved.slots.explorer.enabled)
+            assert.are.same(true, resolved.slots.plugins.enabled)
+        end)
+
+        it("does not mutate config.defaults across repeated calls", function()
+            -- regression guard: tbl_deep_extend("force", {}, defaults, opts)
+            -- must copy into a fresh table, not extend defaults in place,
+            -- or a previous call's override would leak into the next one
+            local first = config.resolve({ slots = { git = { enabled = false } } })
+            local second = config.resolve({})
+            assert.are.same(false, first.slots.git.enabled)
+            assert.are.same(true, second.slots.git.enabled)
+        end)
+    end)
+end)
