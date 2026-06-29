@@ -1,0 +1,9 @@
+# OS cruft
+.DS_Store
+._*
+
+# Editor
+.luarc.json
+
+# Test/dev scratch
+/tests/scratch/
