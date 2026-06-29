@@ -99,9 +99,7 @@ function M.render()
         local line = NuiLine()
         -- one space on each side of the glyph — width=3 below is
         -- sized exactly for this (" " + glyph + " " = 3 cells)
-        line:append(" ")
         line:append(entry.icon, is_active and "NeobarIconActive" or "NeobarIcon")
-        line:append(" ")
 
         line:render(M.buf, NS, i)
     end
