@@ -15,7 +15,7 @@
 --     -- other left views...
 --   },
 --   options = {
---     left = { size = 3 },  -- must match the activity bar width
+--     left = { size = 5 },  -- must match the activity bar width
 --   },
 --
 -- Or call require("neobar.edgy").view({ position = "right" }) and put
@@ -24,7 +24,7 @@
 local M = {}
 
 local FILETYPE = "neobar"
-local DEFAULT_WIDTH = 3
+local DEFAULT_WIDTH = 5
 
 --- Return the Edgy.View.Opts table for the activity bar.
 --- @param opts? { title?: string, width?: number, collapsed?: boolean }

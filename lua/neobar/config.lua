@@ -27,14 +27,14 @@ local M = {}
 ---                                 Default "left" (classic VSCode).
 ---@field width? number   display cells for the activity bar. Must stay in
 ---                       sync with the padding used in window.lua render
----                       and with edgy's options.<side>.size. Default 3.
+---                       and with edgy's options.<side>.size. Default 5.
 ---@field slots? table<string, neobar.SlotConfig>
 
 ---@type neobar.Config
 M.defaults = {
   edgy = true,
   position = "left",
-  width = 3,
+  width = 5,
 
   slots = {
     explorer = { enabled = true },

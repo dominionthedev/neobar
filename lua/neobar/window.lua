@@ -34,8 +34,12 @@ local NS = vim.api.nvim_create_namespace("neobar")
 -- Normal color, so the active/inactive distinction was being computed
 -- correctly the whole time, it just had no visual representation.
 local function define_highlights()
-    vim.api.nvim_set_hl(0, "NeobarIcon", { link = "Comment", default = true })
-    vim.api.nvim_set_hl(0, "NeobarIconActive", { link = "Function", default = true })
+    -- Inactive: readable muted, not Comment-dim.
+    -- Active: bright + bold, plus a left accent bar (NeobarIndicator).
+    vim.api.nvim_set_hl(0, "NeobarIcon", { link = "NonText", default = true })
+    vim.api.nvim_set_hl(0, "NeobarIconActive", { link = "Title", default = true, bold = true })
+    vim.api.nvim_set_hl(0, "NeobarIndicator", { link = "DiagnosticInfo", default = true })
+    vim.api.nvim_set_hl(0, "NeobarBg", { link = "NormalFloat", default = true })
 end
 
 -- Only rows for adapters that actually exist get rendered — icons.lua
@@ -55,6 +59,10 @@ end
 
 M.buf = nil
 M.win = nil
+
+-- linenr (1-indexed) -> adapter name for the current render layout.
+-- Blank gap/pad lines are absent from this map so clicks on them no-op.
+local line_map = {}
 
 -- Last known is_open() snapshot keyed by adapter name. Used by the
 -- refresh path so we only re-render when something actually changed.
@@ -125,28 +133,69 @@ function M.render()
     vim.api.nvim_buf_clear_namespace(M.buf, NS, 0, -1)
 
     local entries = active_icons()
-    local total_lines = math.max(#entries, 1)
-    vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, {})
-    -- pad with blank lines up front so render() (which targets a
-    -- specific line number) always has a line to write into
-    vim.api.nvim_buf_set_lines(M.buf, 0, total_lines, false, vim.fn["repeat"]({ "" }, total_lines))
+    -- Layout (VSCode-style activity bar):
+    --   1 blank top pad
+    --   for each icon: icon row + 1 blank gap
+    -- Icon row cells (width=5): indicator + space + glyph + space + pad
+    --   active:   "▎ x  "
+    --   inactive: "  x  "
+    local TOP_PAD = 1
+    local GAP = 1
+    local rows = {}
+    line_map = {}
+
+    for _ = 1, TOP_PAD do
+        table.insert(rows, "")
+    end
 
     local snap = {}
-    for i, entry in ipairs(entries) do
+    for _, entry in ipairs(entries) do
         local adapter = neobar.get(entry.adapter)
         local ok, is_active = pcall(adapter.is_open)
         is_active = ok and is_active or false
         snap[entry.adapter] = is_active
 
-        local line = NuiLine()
-        -- one space on each side of the glyph — width=3 below is
-        -- sized exactly for this (" " + glyph + " " = 3 cells)
-        line:append(entry.icon, is_active and "NeobarIconActive" or "NeobarIcon")
+        local linenr = #rows + 1
+        line_map[linenr] = entry.adapter
+        table.insert(rows, "") -- placeholder; filled by NuiLine below
 
-        line:render(M.buf, NS, i)
+        for _ = 1, GAP do
+            table.insert(rows, "")
+        end
     end
-    last_active = snap
 
+    if #rows == 0 then
+        rows = { "" }
+    end
+
+    vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, rows)
+
+    for linenr, adapter_name in pairs(line_map) do
+        local entry
+        for _, e in ipairs(entries) do
+            if e.adapter == adapter_name then
+                entry = e
+                break
+            end
+        end
+        if entry then
+            local is_active = snap[adapter_name]
+            local line = NuiLine()
+            if is_active then
+                line:append("▎", "NeobarIndicator")
+                line:append(" ", "NeobarIconActive")
+                line:append(entry.icon, "NeobarIconActive")
+                line:append("  ", "NeobarIconActive")
+            else
+                line:append("  ", "NeobarIcon")
+                line:append(entry.icon, "NeobarIcon")
+                line:append("  ", "NeobarIcon")
+            end
+            line:render(M.buf, NS, linenr)
+        end
+    end
+
+    last_active = snap
     vim.bo[M.buf].modifiable = false
 end
 
@@ -218,12 +267,11 @@ end
 --- represents. Returns nil if the line is out of range (blank padding,
 --- or click below the last icon).
 local function adapter_for_line(linenr)
-    local entries = active_icons()
-    local entry = entries[linenr]
-    if not entry then
+    local name = line_map[linenr]
+    if not name then
         return nil
     end
-    return neobar.get(entry.adapter), entry
+    return neobar.get(name)
 end
 
 local function activate_line(linenr)
@@ -240,15 +288,19 @@ local function activate_line(linenr)
 end
 
 local function setup_buf_keymaps(buf)
-    -- Direct keybind per icon: 1-7 selects the Nth visible row,
-    -- independent of cursor position. This satisfies "click works, but
-    -- each icon also has a direct keybind" without needing per-adapter
-    -- named keys yet (e.g. a dedicated "e" for explorer) — revisit if
-    -- that granularity turns out to matter once this is actually used
-    -- day to day.
-    for i = 1, #icons do
+    -- 1-9 activates the Nth visible icon (by order), not by buffer line.
+    for i = 1, 9 do
         vim.keymap.set("n", tostring(i), function()
-            activate_line(i)
+            local entries = active_icons()
+            local entry = entries[i]
+            if not entry then
+                return
+            end
+            local adapter = neobar.get(entry.adapter)
+            if adapter then
+                adapter.open()
+                vim.defer_fn(M.render, 50)
+            end
         end, { buffer = buf, nowait = true, silent = true })
     end
 
@@ -285,11 +337,9 @@ function M.open()
     local buf = ensure_buf()
 
     local cfg = require("neobar").opts() or {}
-    -- width must stay in sync with:
-    --   1. the per-row padding in render() (" " + glyph + " " ≈ 3 cells)
-    --   2. edgy's options.<side>.size (the real dock width)
-    --   3. neobar.edgy.view() / neobar.edgy.options()
-    local width = cfg.width or 3
+    -- width must stay in sync with render() (indicator + pad + glyph + pad)
+    -- and edgy's options.<side>.size. Default 5 for a readable VSCode-like bar.
+    local width = cfg.width or 5
     local position = cfg.position or "left"
     local col = (position == "left") and 0 or (vim.o.columns - width)
 
@@ -309,6 +359,8 @@ function M.open()
     vim.wo[M.win].relativenumber = false
     vim.wo[M.win].signcolumn = "no"
     vim.wo[M.win].wrap = false
+    vim.wo[M.win].list = false
+    vim.wo[M.win].winhighlight = "Normal:NeobarBg,NormalNC:NeobarBg,EndOfBuffer:NeobarBg"
 
     setup_buf_keymaps(buf)
     M.render()

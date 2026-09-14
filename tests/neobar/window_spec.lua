@@ -37,21 +37,25 @@ describe("neobar.window render()", function()
         })
     end)
 
-    it("renders one line per visible icon", function()
+    it("renders top pad + icon rows + gaps for each visible icon", function()
         window.render()
         local lines = vim.api.nvim_buf_get_lines(window.buf, 0, -1, false)
-        -- icons.lua lists 7 slots, but only explorer/git/plugins have
-        -- a registered adapter — diagnostics/debug/test/run should
-        -- not produce a row
-        assert.are.equal(3, #lines)
+        -- 3 registered adapters -> 1 top pad + 3*(icon + gap) = 7 lines
+        assert.are.equal(7, #lines)
     end)
 
-    it("pads every rendered line to exactly 3 display cells", function()
+    it("pads icon rows to 5 display cells (indicator + glyph + padding)", function()
         window.render()
         local lines = vim.api.nvim_buf_get_lines(window.buf, 0, -1, false)
+        -- only non-blank lines (icon rows) must be width 5
+        local icon_rows = 0
         for _, line in ipairs(lines) do
-            assert.are.equal(3, vim.fn.strdisplaywidth(line))
+            if line ~= "" then
+                icon_rows = icon_rows + 1
+                assert.are.equal(5, vim.fn.strdisplaywidth(line))
+            end
         end
+        assert.are.equal(3, icon_rows)
     end)
 
     it("does not error when re-rendered repeatedly", function()

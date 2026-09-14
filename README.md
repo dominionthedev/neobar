@@ -39,7 +39,7 @@ Neobar provides a ready-made edgy view. Put the activity bar on the **left** (cl
     "folke/edgy.nvim",
   },
   opts = {
-    -- defaults: edgy = true, position = "left", width = 3
+    -- defaults: edgy = true, position = "left", width = 5
   },
 },
 
@@ -61,7 +61,7 @@ Neobar provides a ready-made edgy view. Put the activity bar on the **left** (cl
       },
       -- bottom = { ... }, right = { ... },
       options = {
-        left = neobar_edgy.options(), -- { size = 3 }
+        left = neobar_edgy.options(), -- { size = 5 }
       },
     }
   end,
@@ -88,7 +88,7 @@ Then open it yourself with `:Neobar` or `:NeobarToggle`.
 require("neobar").setup({
   edgy = true,          -- open the edgebar on startup
   position = "left",    -- "left" | "right"  (must match your edgy side)
-  width = 3,            -- display cells; keep in sync with edgy options.<side>.size
+  width = 5,            -- display cells; keep in sync with edgy options.<side>.size
   slots = {
     explorer = { enabled = true },
     git = { enabled = true },
@@ -110,10 +110,10 @@ local neobar_edgy = require("neobar.edgy")
 
 -- Single view ready to drop into left = { ... } or right = { ... }
 neobar_edgy.view()                    -- defaults
-neobar_edgy.view({ title = "Activity", width = 3, collapsed = false })
+neobar_edgy.view({ title = "Activity", width = 5, collapsed = false })
 
 -- Matching options.<side> entry
-neobar_edgy.options()                 -- { size = 3 }
+neobar_edgy.options()                 -- { size = 5 }
 neobar_edgy.options({ width = 4 })
 
 -- Full snippet if you prefer
@@ -137,7 +137,7 @@ Important size rule:
 - The edgebar **width** (left/right) comes from `options.left.size` / `options.right.size`.
 - A view-level `size` field only controls the *other* axis (height when several views share the same edgebar).
 
-`neobar.edgy.options()` returns the correct `{ size = 3 }` table so you do not have to remember the distinction.
+`neobar.edgy.options()` returns the correct `{ size = 5 }` table so you do not have to remember the distinction.
 
 ## Why no nui.split, even though nui.nvim is a dependency
 

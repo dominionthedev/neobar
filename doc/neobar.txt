@@ -78,7 +78,7 @@ Pass options via the `opts` table in your lazy.nvim spec, or call
     require("neobar").setup({
         edgy = true,
         position = "left",
-        width = 3,
+        width = 5,
         slots = {
             explorer = { enabled = true },
             git = { enabled = true },
@@ -108,7 +108,7 @@ position~
 
                                                                  *neobar.width*
 width~
-    Type: `number`  Default: `3`
+    Type: `number`  Default: `5`
 
     Display cells for the activity bar. Keep in sync with
     `require("neobar.edgy").options()` and the padding used by the
@@ -155,7 +155,7 @@ The recommended way to integrate is to use the helpers in
 |neobar.edgy|:
 
     require("neobar.edgy").view()      " ready-to-merge Edgy.View.Opts
-    require("neobar.edgy").options()   " { size = 3 } for options.<side>
+    require("neobar.edgy").options()   " { size = 5 } for options.<side>
     require("neobar.edgy").snippet()   " full {position, views, options}
 
 Example (activity bar on the left, classic VSCode):
