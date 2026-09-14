@@ -163,11 +163,10 @@ local function setup_buf_keymaps(buf)
 end
 
 --- Open (or focus, if already open) the neobar window. edgy.nvim is
---- expected to immediately relocate this into its configured `right`
---- edgebar slot based on filetype — see the edgy opts in
---- plugins/neobar.lua. The raw position/size passed to nvim_open_win
---- here is a reasonable fallback if edgy isn't loaded/enabled for some
---- reason, not the real intended layout.
+--- expected to immediately relocate this into its configured edgebar
+--- slot based on filetype (see neobar.edgy.view()). The raw
+--- position/size passed to nvim_open_win here is only a reasonable
+--- fallback if edgy isn't loaded/enabled.
 function M.open()
     if M.win and vim.api.nvim_win_is_valid(M.win) then
         vim.api.nvim_set_current_win(M.win)
@@ -178,21 +177,21 @@ function M.open()
 
     local buf = ensure_buf()
 
-    -- width=3 fits what render() writes per row (" " + glyph + " " =
-    -- 3 display cells). This MUST stay in sync with two other places:
-    -- the per-row padding in render() just above, and edgy.nvim's own
-    -- options.right.size in the consuming dotfiles' plugin spec for
-    -- edgy — that field controls the actual edgebar dock width and
-    -- doesn't read this value automatically. See README/doc for the
-    -- view-vs-edgebar size distinction if that's not obvious.
-    local width = 3
+    local cfg = require("neobar").opts() or {}
+    -- width must stay in sync with:
+    --   1. the per-row padding in render() (" " + glyph + " " ≈ 3 cells)
+    --   2. edgy's options.<side>.size (the real dock width)
+    --   3. neobar.edgy.view() / neobar.edgy.options()
+    local width = cfg.width or 3
+    local position = cfg.position or "left"
+    local col = (position == "left") and 0 or (vim.o.columns - width)
 
     M.win = vim.api.nvim_open_win(buf, false, {
         relative = "editor",
         width = width,
         height = vim.o.lines - 2,
         row = 0,
-        col = vim.o.columns - width,
+        col = col,
         style = "minimal",
         border = "none",
         focusable = true,

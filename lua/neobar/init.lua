@@ -101,13 +101,18 @@ function M.setup(opts)
     end
 
     if resolved_opts.edgy then
+        -- Open the configured edgebar on startup so the pinned
+        -- activity-bar view appears. The actual view registration
+        -- must still live in the user's edgy.nvim opts (see
+        -- neobar.edgy.view() / README). We only call open() here.
+        local position = resolved_opts.position or "left"
         vim.api.nvim_create_autocmd("VimEnter", {
             once = true,
             callback = function()
                 vim.schedule(function()
-                    local ok = pcall(require, "edgy")
-                    if ok then
-                        require("edgy").open("right")
+                    local ok, edgy = pcall(require, "edgy")
+                    if ok and edgy and edgy.open then
+                        edgy.open(position)
                     end
                 end)
             end,
