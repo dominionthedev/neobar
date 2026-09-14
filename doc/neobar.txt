@@ -15,8 +15,7 @@ CONTENTS                                                     *neobar-contents*
 
 Neobar is a thin vertical icon bar, docked to the edge of the screen,
 that dispatches to tools you already have — a file explorer, git, your
-plugin manager, and (as adapters are added) diagnostics, a debugger,
-a test runner, and a task runner. It does not reimplement any of
+plugin manager, diagnostics, a debugger, a test runner, and a task runner. It does not reimplement any of
 those tools. Each icon is backed by a small adapter that knows how to
 open the real tool and how to ask it "are you currently open" so
 neobar can highlight the icon accordingly.
@@ -130,23 +129,20 @@ slots~
 5. Adapters                                                  *neobar-adapters*
 
 An adapter is the small piece of code that knows how to open one
-underlying tool and how to check whether it's currently open. As of
-this release, three of the seven planned slots have a real adapter:
+underlying tool and how to check whether it's currently open. All
+seven slots have a real adapter:
 
-    explorer    Snacks.explorer() / Snacks.picker.get({source="explorer"})
-    git         Snacks.lazygit() / scans Snacks.terminal.list() for a
-                live instance launched with a "lazygit" command
-    plugins     require("lazy.view").show() / .visible()
+    explorer      Snacks.explorer() / Snacks.picker.get({source="explorer"})
+    git           Snacks.lazygit() / Snacks.terminal.list() cmd match
+    plugins       require("lazy.view").show() / .visible()
+    diagnostics   require("trouble").toggle/is_open("diagnostics")
+    debug         require("dapui").toggle() / dapui_* filetype scan
+    test          require("neotest").summary.toggle() / neotest-summary ft
+    run           require("overseer").toggle() / OverseerList filetype
 
-    diagnostics, debug, test, run — not implemented yet. Their icons
-    and slot names exist in the config schema and icon set already so
-    enabling them later doesn't require a config migration, but
-    activating their slot right now does nothing because there's no
-    adapter to dispatch to.
-
-Each adapter is intentionally small and self-contained — neobar's
-window/rendering code never talks to Snacks, lazy.nvim, or anything
-else directly, only to the adapter's `open()`/`is_open()` functions.
+If the backing plugin is not installed, `open()` notifies and no-ops;
+`is_open()` returns false. The UI never talks to those plugins
+directly — only through the adapter's `open()`/`is_open()` functions.
 
 ==============================================================================
 6. Edgy.nvim integration                                          *neobar-edgy*

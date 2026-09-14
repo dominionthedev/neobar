@@ -9,10 +9,8 @@
 -- control (git), extensions (plugins), beaker (testing) — which fits,
 -- since neobar is deliberately recreating that exact pattern.
 --
--- Only explorer/git/plugins have real adapters right now (see
--- neobar/adapters/). diagnostics/debug/test/run are listed here so the
--- icon set is complete and stable once those adapters exist, but
--- they're not wired into the registry yet — see neobar/init.lua.
+-- All seven slots have real adapters (see neobar/adapters/). Icons are
+-- only rendered for adapters that are registered and enabled.
 
 return {
     { name = "explorer", adapter = "explorer", icon = "\u{EAF7}" }, -- nf-cod-folder_opened

@@ -6,27 +6,15 @@
 -- is a different plugin with a different API, and several don't
 -- expose any "is it open" query at all. Verified directly against
 -- real source (not docs, which can lag or omit internals) for the
--- three built so far:
+-- adapters built so far:
 --
---   explorer (Snacks)   -> Snacks.picker.get({source="explorer"})
---                          returns live picker instances; #list > 0
---                          means open. Real, public, documented.
---   git (Snacks.lazygit) -> NO public is-open query. Snacks.lazygit is
---                          built on Snacks.terminal, which DOES expose
---                          terminal.list() returning live snacks.win
---                          instances with a `.cmd` field. Filtering
---                          list() for an instance whose cmd matches
---                          "lazygit" and is :valid() is the real
---                          mechanism — confirmed by reading
---                          snacks/terminal.lua and snacks/win.lua
---                          directly, not assumed from docs.
---   plugins (lazy.nvim)  -> NO public is-open query either. lazy.nvim's
---                          UI window's buffer gets filetype = "lazy"
---                          (confirmed in lazy/view/float.lua) — so
---                          this adapter scans open windows for that
---                          filetype directly via the Neovim API, which
---                          doesn't depend on lazy.nvim exposing
---                          anything at all.
+--   explorer (Snacks)      -> Snacks.picker.get({source="explorer"})
+--   git (Snacks.lazygit)   -> Snacks.terminal.list() + cmd match
+--   plugins (lazy.nvim)    -> lazy.view.visible()
+--   diagnostics (trouble)  -> trouble.toggle/is_open("diagnostics")
+--   debug (dapui)          -> dapui.toggle() + dapui_* filetype scan
+--   test (neotest)         -> neotest.summary.toggle() + ft scan
+--   run (overseer)         -> overseer.toggle() + OverseerList ft scan
 --
 -- Adapter contract — each file in neobar/adapters/ returns:
 --   {
@@ -74,8 +62,7 @@ end
 --- Entry point a real lazy.nvim install calls automatically via
 --- { "dominionthedev/neobar", opts = {...} }. Registers the built-in
 --- adapters whose slot is enabled (all seven are enabled by default,
---- but only explorer/git/plugins have a real adapter as of this
---- release — see neobar/adapters/), and wires the startup-open
+--- and wires the startup-open
 --- autocmd unless opts.edgy = false.
 ---@param opts? neobar.Config
 function M.setup(opts)
@@ -85,12 +72,10 @@ function M.setup(opts)
         explorer = "neobar.adapters.explorer",
         git = "neobar.adapters.git",
         plugins = "neobar.adapters.plugins",
-        -- diagnostics/debug/test/run intentionally absent — there is
-        -- no adapter module for them yet. Listing a module path here
-        -- that doesn't exist would turn "user disabled this slot"
-        -- and "this slot isn't built yet" into the same silent
-        -- failure mode, which defeats the point of having `enabled`
-        -- be a meaningful flag at all.
+        diagnostics = "neobar.adapters.diagnostics",
+        debug = "neobar.adapters.debug",
+        test = "neobar.adapters.test",
+        run = "neobar.adapters.run",
     }
 
     for slot_name, module_path in pairs(available) do

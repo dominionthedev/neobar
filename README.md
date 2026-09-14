@@ -13,19 +13,19 @@ Neobar doesn't reimplement anything. It doesn't have its own file explorer, its 
 
 ## Status
 
-Three of seven planned slots have a real adapter right now:
+All seven slots have a real adapter:
 
 | Slot | Backs onto | State |
 |---|---|---|
-| explorer |  `Snacks.explorer()` | done |
+| explorer | `Snacks.explorer()` | done |
 | git | `Snacks.lazygit()` | done |
-| plugins | lazy.nvim's own UI | done |
-| diagnostics | — | not yet |
-| debug | — | not yet |
-| test | — | not yet |
-| run | — | not yet |
+| plugins | lazy.nvim UI (`lazy.view`) | done |
+| diagnostics | trouble.nvim (`diagnostics` mode) | done |
+| debug | nvim-dap-ui | done |
+| test | neotest summary | done |
+| run | overseer.nvim task list | done |
 
-The icon set and config schema for all seven already exist, so adding the remaining four adapters later won't require a config migration.
+Adapters that depend on a plugin you don't have installed still register, but `open()` notifies and no-ops; `is_open()` returns false.
 
 ## Install (recommended — VSCode-like layout)
 
