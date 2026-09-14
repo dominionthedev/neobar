@@ -1,49 +1,44 @@
 -- Default configuration and config merging for neobar.
---
--- Deliberately minimal right now: window.lua's width/padding are
--- still simple hardcoded values (proven correct through real testing
--- in a live Neovim session, not just reasoned about) rather than
--- driven through this config yet. Re-plumbing every internal constant
--- through opts before any of it has been used for real risks
--- reintroducing the exact kind of untested-assumption bugs this
--- project has already hit twice (the edgy view-vs-edgebar size
--- confusion, the missing highlight group definitions). This config
--- module covers the options that are genuinely safe to expose now:
--- whether neobar manages its own edgy integration at all, which side
--- the bar should live on, the width, and which adapters/slots are enabled.
 
 local M = {}
 
 ---@class neobar.SlotConfig
 ---@field enabled? boolean
+---@field side? "left"|"right"|"bottom"|"top"  which edge the tool panel prefers
+
+---@class neobar.CustomAdapter
+---@field name string
+---@field icon? string
+---@field side? "left"|"right"|"bottom"|"top"
+---@field open fun()
+---@field is_open fun(): boolean
+---@field close? fun()
 
 ---@class neobar.Config
----@field edgy? boolean   if true (default), neobar registers a VimEnter
----                       autocmd that opens its pinned edgy view at
----                       startup. Set false if you'd rather call
----                       require("edgy").open(...) yourself, or
----                       don't use edgy at all.
----@field position? "left"|"right"  which edgebar the activity bar belongs to.
----                                 Default "left" (classic VSCode).
----@field width? number   display cells for the activity bar. Must stay in
----                       sync with the padding used in window.lua render
----                       and with edgy's options.<side>.size. Default 5.
+---@field edgy? boolean
+---@field position? "left"|"right"  activity bar edge (default "left")
+---@field width? number  activity bar cells (default 5)
+---@field exclusive? boolean  only one tool panel open per side (default true)
 ---@field slots? table<string, neobar.SlotConfig>
+---@field adapters? neobar.CustomAdapter[]  user-defined adapters registered at setup
 
 ---@type neobar.Config
 M.defaults = {
   edgy = true,
   position = "left",
   width = 5,
+  exclusive = true,
 
   slots = {
-    explorer = { enabled = true },
-    git = { enabled = true },
-    plugins = { enabled = true },
-    diagnostics = { enabled = true },
-    debug = { enabled = true },
-    test = { enabled = true },
-    run = { enabled = true },
+    -- Classic VSCode-ish placement of tool panels (not the activity bar itself)
+    explorer = { enabled = true, side = "left" },
+    git = { enabled = true, side = "left" },
+    plugins = { enabled = true, side = "left" },
+    diagnostics = { enabled = true, side = "right" },
+    debug = { enabled = true, side = "right" },
+    test = { enabled = true, side = "right" },
+    run = { enabled = true, side = "bottom" },
+    terminal = { enabled = true, side = "bottom" },
   },
 }
 

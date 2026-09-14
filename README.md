@@ -103,6 +103,45 @@ require("neobar").setup({
 
 A slot only appears if it is both `enabled = true` **and** has a real adapter (see the status table). Disabling a not-yet-built slot has no visible effect.
 
+### Custom adapters
+
+Register extra tools via `opts.adapters` or `require("neobar").register(...)` after setup:
+
+```lua
+require("neobar").setup({
+  adapters = {
+    {
+      name = "symbols",
+      icon = "󰀫",
+      side = "right",
+      open = function()
+        vim.cmd("SymbolsOutline")
+      end,
+      is_open = function()
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+          if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "Outline" then
+            return true
+          end
+        end
+        return false
+      end,
+    },
+  },
+})
+```
+
+### Panel sides + exclusive switching
+
+Each slot has a preferred edge (`left` / `right` / `bottom` / `top`). Defaults:
+
+| Side | Slots |
+|------|--------|
+| left | explorer, git, plugins |
+| right | diagnostics, debug, test |
+| bottom | run, terminal |
+
+With `exclusive = true` (default), opening a tool closes any other neobar-managed tool already open on that same side — one panel per edge, switched from the activity bar.
+
 ### Helper for your edgy config
 
 ```lua

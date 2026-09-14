@@ -54,6 +54,12 @@ local function active_icons()
             table.insert(out, entry)
         end
     end
+    -- Custom adapters registered with an icon appear after builtins.
+    for _, entry in ipairs(neobar.custom_icons()) do
+        if neobar.get(entry.adapter) then
+            table.insert(out, entry)
+        end
+    end
     return out
 end
 
@@ -279,11 +285,8 @@ local function activate_line(linenr)
     if not adapter then
         return
     end
-    adapter.open()
-    -- give the target plugin a moment to actually open its window
-    -- before re-checking is_open() — most of these (Snacks pickers,
-    -- terminals) are synchronous, but this avoids a flash of
-    -- incorrect "inactive" state for anything that isn't.
+    -- Route through layout so exclusive-per-side switching works.
+    require("neobar.layout").open(adapter.name)
     vim.defer_fn(M.render, 50)
 end
 
@@ -296,9 +299,8 @@ local function setup_buf_keymaps(buf)
             if not entry then
                 return
             end
-            local adapter = neobar.get(entry.adapter)
-            if adapter then
-                adapter.open()
+            if neobar.get(entry.adapter) then
+                require("neobar.layout").open(entry.adapter)
                 vim.defer_fn(M.render, 50)
             end
         end, { buffer = buf, nowait = true, silent = true })
@@ -319,6 +321,11 @@ local function setup_buf_keymaps(buf)
         end
         activate_line(mouse.line)
     end, { buffer = buf, silent = true })
+
+    -- Keep the cursor from sliding horizontally through pad spaces.
+    for _, key in ipairs({ "h", "l", "<Left>", "<Right>", "0", "$", "^" }) do
+        vim.keymap.set("n", key, "<Nop>", { buffer = buf, silent = true })
+    end
 end
 
 --- Open (or focus, if already open) the neobar window. edgy.nvim is
@@ -365,6 +372,15 @@ function M.open()
     setup_buf_keymaps(buf)
     M.render()
     start_refresh()
+end
+
+--- Focus the neobar window if it exists; otherwise open it.
+function M.focus()
+    if M.win and vim.api.nvim_win_is_valid(M.win) then
+        vim.api.nvim_set_current_win(M.win)
+        return
+    end
+    M.open()
 end
 
 --- Close the neobar window and tear down refresh watchers.

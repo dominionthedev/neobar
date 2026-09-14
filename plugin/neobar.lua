@@ -1,10 +1,4 @@
--- Auto-loaded by Neovim's plugin/ mechanism once neobar is installed
--- (no explicit require needed for this file specifically — anything
--- under plugin/ in a runtimepath-visible plugin is sourced at startup
--- automatically). User commands belong here rather than in
--- lua/neobar/init.lua's setup() so they exist even if, for some
--- reason, setup() hasn't run yet — though M.open()/M.toggle() will
--- still assert that setup() has run before doing real work.
+-- Auto-loaded by Neovim's plugin/ mechanism once neobar is installed.
 
 if vim.g.loaded_neobar then
     return
@@ -22,3 +16,7 @@ end, { desc = "Toggle neobar" })
 vim.api.nvim_create_user_command("NeobarClose", function()
     require("neobar.window").close()
 end, { desc = "Close neobar" })
+
+vim.api.nvim_create_user_command("NeobarFocus", function()
+    require("neobar.window").focus()
+end, { desc = "Focus neobar (open if needed)" })
