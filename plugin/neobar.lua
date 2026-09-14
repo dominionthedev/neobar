@@ -16,10 +16,9 @@ vim.api.nvim_create_user_command("Neobar", function()
 end, { desc = "Open neobar" })
 
 vim.api.nvim_create_user_command("NeobarToggle", function()
-    local window = require("neobar.window")
-    if window.win and vim.api.nvim_win_is_valid(window.win) then
-        vim.api.nvim_win_close(window.win, true)
-    else
-        window.open()
-    end
+    require("neobar.window").toggle()
 end, { desc = "Toggle neobar" })
+
+vim.api.nvim_create_user_command("NeobarClose", function()
+    require("neobar.window").close()
+end, { desc = "Close neobar" })

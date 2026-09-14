@@ -56,6 +56,17 @@ end
 M.buf = nil
 M.win = nil
 
+-- Last known is_open() snapshot keyed by adapter name. Used by the
+-- refresh path so we only re-render when something actually changed.
+local last_active = {}
+
+-- Augroup + timer for event-driven / periodic refresh. Created on
+-- first open, cleared when the window goes away.
+local refresh_augroup = nil
+local refresh_timer = nil
+local REFRESH_INTERVAL_MS = 1000 -- soft fallback poll; events do the real work
+local refresh_pending = false
+
 local function ensure_buf()
     if M.buf and vim.api.nvim_buf_is_valid(M.buf) then
         return M.buf
@@ -72,11 +83,39 @@ local function ensure_buf()
     return buf
 end
 
---- Redraw every icon row. Called on initial open and whenever any
---- adapter's is_open() might have changed (after a click, and on a
---- periodic/event-driven refresh wired in later — not built yet,
---- since that depends on the adapters that don't exist yet for
---- diagnostics/debug/test/run).
+--- Snapshot of current is_open() for every registered adapter.
+---@return table<string, boolean>
+local function snapshot_active()
+    local snap = {}
+    for _, entry in ipairs(active_icons()) do
+        local adapter = neobar.get(entry.adapter)
+        if adapter then
+            local ok, result = pcall(adapter.is_open)
+            snap[entry.adapter] = ok and result or false
+        end
+    end
+    return snap
+end
+
+---@param a table<string, boolean>
+---@param b table<string, boolean>
+---@return boolean
+local function snapshot_changed(a, b)
+    for k, v in pairs(a) do
+        if b[k] ~= v then
+            return true
+        end
+    end
+    for k, v in pairs(b) do
+        if a[k] ~= v then
+            return true
+        end
+    end
+    return false
+end
+
+--- Redraw every icon row. Called on initial open, after clicks, and
+--- by the event/timer refresh path when any adapter's is_open() changed.
 function M.render()
     if not (M.buf and vim.api.nvim_buf_is_valid(M.buf)) then
         return
@@ -92,9 +131,12 @@ function M.render()
     -- specific line number) always has a line to write into
     vim.api.nvim_buf_set_lines(M.buf, 0, total_lines, false, vim.fn["repeat"]({ "" }, total_lines))
 
+    local snap = {}
     for i, entry in ipairs(entries) do
         local adapter = neobar.get(entry.adapter)
-        local is_active = adapter.is_open()
+        local ok, is_active = pcall(adapter.is_open)
+        is_active = ok and is_active or false
+        snap[entry.adapter] = is_active
 
         local line = NuiLine()
         -- one space on each side of the glyph — width=3 below is
@@ -103,8 +145,73 @@ function M.render()
 
         line:render(M.buf, NS, i)
     end
+    last_active = snap
 
     vim.bo[M.buf].modifiable = false
+end
+
+--- Cheap check: re-render only if any adapter's open state changed.
+function M.refresh()
+    if not (M.win and vim.api.nvim_win_is_valid(M.win)) then
+        return
+    end
+    if not (M.buf and vim.api.nvim_buf_is_valid(M.buf)) then
+        return
+    end
+
+    local snap = snapshot_active()
+    if snapshot_changed(last_active, snap) then
+        M.render()
+    end
+end
+
+-- Debounced schedule so a burst of WinEnter/WinClosed events collapses
+-- into one refresh on the next tick.
+local function schedule_refresh()
+    if refresh_pending then
+        return
+    end
+    refresh_pending = true
+    vim.schedule(function()
+        refresh_pending = false
+        M.refresh()
+    end)
+end
+
+local function stop_refresh()
+    if refresh_timer then
+        refresh_timer:stop()
+        refresh_timer:close()
+        refresh_timer = nil
+    end
+    if refresh_augroup then
+        vim.api.nvim_del_augroup_by_id(refresh_augroup)
+        refresh_augroup = nil
+    end
+end
+
+local function start_refresh()
+    stop_refresh()
+
+    refresh_augroup = vim.api.nvim_create_augroup("NeobarRefresh", { clear = true })
+
+    -- Primary signals: windows appearing/disappearing or gaining focus
+    -- (covers closing a tool from outside the bar, switching tabs, etc.)
+    vim.api.nvim_create_autocmd({ "WinEnter", "WinClosed", "BufWinEnter", "BufWinLeave" }, {
+        group = refresh_augroup,
+        callback = schedule_refresh,
+    })
+
+    -- Soft fallback for tools whose open/close does not fire the above
+    -- (or fires them before the adapter's is_open() is accurate yet).
+    refresh_timer = vim.uv.new_timer()
+    refresh_timer:start(REFRESH_INTERVAL_MS, REFRESH_INTERVAL_MS, vim.schedule_wrap(function()
+        if not (M.win and vim.api.nvim_win_is_valid(M.win)) then
+            stop_refresh()
+            return
+        end
+        M.refresh()
+    end))
 end
 
 --- Map a clicked/cursor line number (1-indexed) back to the adapter it
@@ -205,6 +312,25 @@ function M.open()
 
     setup_buf_keymaps(buf)
     M.render()
+    start_refresh()
+end
+
+--- Close the neobar window and tear down refresh watchers.
+function M.close()
+    stop_refresh()
+    if M.win and vim.api.nvim_win_is_valid(M.win) then
+        vim.api.nvim_win_close(M.win, true)
+    end
+    M.win = nil
+end
+
+--- Toggle: close if open, otherwise open.
+function M.toggle()
+    if M.win and vim.api.nvim_win_is_valid(M.win) then
+        M.close()
+    else
+        M.open()
+    end
 end
 
 return M
