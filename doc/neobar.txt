@@ -28,24 +28,37 @@ window at the edge of the screen and keep it pinned there.
 ==============================================================================
 2. Setup                                                        *neobar-setup*
 
-Minimal lazy.nvim spec: >lua
+Recommended lazy.nvim + edgy setup (activity bar on the left): >lua
     {
-        "dominionthedev/neobar",
-        dependencies = {
-            "MunifTanjim/nui.nvim",
-            "folke/edgy.nvim",
-        },
-        opts = {},
+      "dominionthedev/neobar",
+      dependencies = {
+        "MunifTanjim/nui.nvim",
+        "folke/edgy.nvim",
+      },
+      opts = {},  -- defaults: edgy=true, position="left", width=3
+    },
+    {
+      "folke/edgy.nvim",
+      event = "VeryLazy",
+      init = function()
+        vim.opt.laststatus = 3
+        vim.opt.splitkeep = "screen"
+      end,
+      opts = function()
+        local neobar_edgy = require("neobar.edgy")
+        return {
+          left = { neobar_edgy.view() },
+          options = { left = neobar_edgy.options() },
+        }
+      end,
     }
 <
-With no |neobar-config| options at all, neobar registers every
-built-in adapter that's actually implemented (see |neobar-adapters|)
-and opens its pinned edgy view automatically on |VimEnter|.
+With the above, neobar registers every built-in adapter that exists
+and opens the left edgebar on |VimEnter| so the pinned activity bar
+appears.
 
-nui.nvim is a hard dependency (used for rendering each icon row).
-edgy.nvim is only required if |neobar-config| has `edgy = true` (the
-default) — set it to `false` if you don't have edgy.nvim installed or
-want to manage docking yourself.
+nui.nvim is a hard dependency (rendering). edgy.nvim is only required
+when |neobar-config| has `edgy = true` (the default).
 
 ==============================================================================
 3. Commands                                                  *neobar-commands*
@@ -65,6 +78,8 @@ Pass options via the `opts` table in your lazy.nvim spec, or call
 `require("neobar").setup(opts)` directly. >lua
     require("neobar").setup({
         edgy = true,
+        position = "left",
+        width = 3,
         slots = {
             explorer = { enabled = true },
             git = { enabled = true },
@@ -81,10 +96,24 @@ edgy~
     Type: `boolean`  Default: `true`
 
     When `true`, neobar registers a |VimEnter| autocmd that calls
-    `require("edgy").open("right")` so its pinned view appears at
-    startup without you needing to open it yourself. Set to `false`
-    if edgy.nvim isn't installed, or if you'd rather call
-    `require("edgy").open(...)` yourself at a time of your choosing.
+    `require("edgy").open(position)` so its pinned view appears at
+    startup. Set to `false` if edgy.nvim isn't installed, or if you'd
+    rather call `require("edgy").open(...)` yourself.
+
+                                                              *neobar.position*
+position~
+    Type: `"left"` | `"right"`  Default: `"left"`
+
+    Which edgebar the activity bar belongs to. Must match the side
+    you place `require("neobar.edgy").view()` into in your edgy config.
+
+                                                                 *neobar.width*
+width~
+    Type: `number`  Default: `3`
+
+    Display cells for the activity bar. Keep in sync with
+    `require("neobar.edgy").options()` and the padding used by the
+    renderer.
 
                                                                  *neobar.slots*
 slots~
@@ -122,17 +151,49 @@ else directly, only to the adapter's `open()`/`is_open()` functions.
 ==============================================================================
 6. Edgy.nvim integration                                          *neobar-edgy*
 
-Neobar's window is a plain floating window with `filetype = "neobar"`
-— edgy.nvim relocates and docks ANY window matching a filetype it's
-been told about, regardless of how that window was created, so this
-works without neobar needing to know anything about edgy's internals
-beyond contributing one view entry.
+Neobar's window is a plain floating window with `filetype = "neobar"`.
+edgy.nvim relocates and docks ANY window matching a filetype it has
+been told about, regardless of how that window was created.
 
-The edgebar's WIDTH is controlled by edgy's own `options.right.size`
-(or `options.left.size`), not by anything per-view — this matters if
-you're customizing edgy's own setup() call alongside other edgebar
-views (Trouble, neo-tree, etc. sharing the same right/left edgebar).
-neobar's own plugin spec sets `options.right.size = 2` to match its
-window's actual content width (one space plus one glyph).
+The recommended way to integrate is to use the helpers in
+|neobar.edgy|:
+
+    require("neobar.edgy").view()      " ready-to-merge Edgy.View.Opts
+    require("neobar.edgy").options()   " { size = 3 } for options.<side>
+    require("neobar.edgy").snippet()   " full {position, views, options}
+
+Example (activity bar on the left, classic VSCode):
+
+    {
+      "folke/edgy.nvim",
+      opts = function()
+        local neobar_edgy = require("neobar.edgy")
+        return {
+          left = {
+            neobar_edgy.view(),
+            -- other left views...
+          },
+          options = {
+            left = neobar_edgy.options(),
+          },
+        }
+      end,
+    }
+
+Size rule (important):
+
+- The edgebar WIDTH (left/right) is controlled by
+  `options.left.size` / `options.right.size`.
+- A view-level `size` field only controls the other axis (height when
+  several views share the same edgebar).
+
+`neobar.edgy.options()` returns the correct table so you do not have
+to remember the distinction. Keep that value in sync with
+|neobar-config| `width` (default 3).
+
+When |neobar-config| has `edgy = true` (the default), neobar registers
+a |VimEnter| autocmd that calls `require("edgy").open(position)` so
+the pinned activity bar appears at startup. The view itself must
+still be present in your edgy configuration (see above).
 
 vim:tw=78:ts=8:noet:ft=help:norl:
