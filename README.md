@@ -136,9 +136,25 @@ Each slot has a preferred edge (`left` / `right` / `bottom` / `top`). Defaults:
 
 | Side | Slots |
 |------|--------|
-| left | explorer, git, plugins |
-| right | diagnostics, debug, test |
-| bottom | run, terminal |
+| left | explorer, plugins, **debug** (dapui scopes/stacks/breakpoints/watches) |
+| right | git (lazygit), diagnostics, test |
+| bottom | run, terminal, **debug** (dapui repl/console) |
+
+`debug` uses **both** left and bottom. With `exclusive = true`, opening explorer closes debug (and the reverse).
+
+#### dapui layouts (required for the debug layout above)
+
+```lua
+require("dapui").setup({
+  layouts = require("neobar.dapui").layouts(),
+  -- or paste the table from :help / README
+})
+```
+
+#### Git vs terminal
+
+Snacks.lazygit is a terminal process. The **git** adapter only matches cmds containing `lazygit`; the **terminal** adapter ignores those so only one icon is active.
+
 
 With `exclusive = true` (default), opening a tool closes any other neobar-managed tool already open on that same side — one panel per edge, switched from the activity bar.
 

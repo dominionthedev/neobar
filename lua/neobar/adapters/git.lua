@@ -1,46 +1,45 @@
--- Git adapter (Snacks.lazygit). Unlike explorer, there is NO public
--- "is lazygit open" query — Snacks.lazygit.open() is built on
--- Snacks.terminal, and the `win = { style = "lazygit" }` field it
--- passes is only used to merge in default config at construction time
--- (snacks/win.lua line ~246: `ret.style = nil` — it's deliberately
--- NOT kept on the live instance, so checking instance.opts.style later
--- doesn't work).
+-- Git adapter (Snacks.lazygit).
 --
--- What IS confirmed real and queryable, from reading
--- snacks/terminal.lua directly: M.list() returns every live terminal
--- snacks.win instance, and each instance stores the command it was
--- launched with on self.cmd. So this adapter lists all live terminals
--- and checks whether any of them was launched with a command
--- containing "lazygit" and is still :valid() (a real method on
--- snacks.win — confirmed it checks win+buf validity AND that the
--- window's current buffer still matches, not just "did this exist at
--- some point").
---
--- This will also need updating later when the user's own lazygit-nvim
--- integration plugin replaces Snacks.lazygit() as the open mechanism —
--- noted in the comment so future-me doesn't forget this is a stopgap
--- tied to the CURRENT git tool choice, not a permanent design.
+-- is_open: Snacks.terminal.list() filtered to cmds containing "lazygit".
+-- Deliberately separate from the terminal adapter so a normal shell
+-- terminal does not light up the git icon and vice versa.
+
+local function cmd_str(cmd)
+  if type(cmd) == "table" then
+    return table.concat(cmd, " ")
+  end
+  return tostring(cmd or "")
+end
 
 local function find_lazygit_terminal()
-    local terminals = Snacks.terminal.list()
-    for _, term in ipairs(terminals) do
-        local cmd = term.cmd
-        local cmd_str = type(cmd) == "table" and table.concat(cmd, " ") or tostring(cmd or "")
-        if cmd_str:find("lazygit", 1, true) and term:valid() then
-            return term
-        end
-    end
+  if not (Snacks and Snacks.terminal and Snacks.terminal.list) then
     return nil
+  end
+  local ok, terminals = pcall(Snacks.terminal.list)
+  if not ok or not terminals then
+    return nil
+  end
+  for _, term in ipairs(terminals) do
+    if cmd_str(term.cmd):find("lazygit", 1, true) and term:valid() then
+      return term
+    end
+  end
+  return nil
 end
 
 return {
-    name = "git",
+  name = "git",
+  side = "right",
 
-    open = function()
-        Snacks.lazygit()
-    end,
+  open = function()
+    if not (Snacks and Snacks.lazygit) then
+      vim.notify("neobar: Snacks.lazygit is not available", vim.log.levels.WARN)
+      return
+    end
+    Snacks.lazygit()
+  end,
 
-    is_open = function()
-        return find_lazygit_terminal() ~= nil
-    end,
+  is_open = function()
+    return find_lazygit_terminal() ~= nil
+  end,
 }

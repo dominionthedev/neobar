@@ -1,14 +1,14 @@
--- Panel layout: which tool is active on each edge, and exclusive open.
+-- Panel layout: exclusive tool-per-side switching.
 --
--- When exclusive = true (default), opening a tool on a side closes any
--- other neobar-managed tool currently open on that same side — so you
--- get one panel per edge, switched by the activity bar (VSCode-like).
+-- Adapters may declare a single `side` or multiple `sides` (e.g. debug
+-- uses left + bottom for dapui). When exclusive is on, opening a tool
+-- closes any other open neobar tool that shares at least one side.
 
 local neobar = require("neobar")
 
 local M = {}
 
--- side -> adapter name currently considered active on that edge
+-- side -> adapter name last activated on that edge
 local active = {
   left = nil,
   right = nil,
@@ -17,18 +17,27 @@ local active = {
 }
 
 ---@param name string
----@return "left"|"right"|"bottom"|"top"
-function M.side_for(name)
+---@return string[]
+function M.sides_for(name)
   local opts = neobar.opts() or {}
   local slot = opts.slots and opts.slots[name]
-  if slot and slot.side then
-    return slot.side
-  end
   local adapter = neobar.get(name)
-  if adapter and adapter.side then
-    return adapter.side
+
+  if slot and slot.sides then
+    return slot.sides
   end
-  return "left"
+  if adapter and adapter.sides then
+    return adapter.sides
+  end
+
+  local side = (slot and slot.side) or (adapter and adapter.side) or "left"
+  return { side }
+end
+
+---@param name string
+---@return string
+function M.side_for(name)
+  return M.sides_for(name)[1] or "left"
 end
 
 ---@param name string
@@ -42,22 +51,31 @@ local function is_open(name)
   return ok and result or false
 end
 
---- Close a tool if possible (prefer close(), else toggle via open()).
 ---@param name string
 local function close_tool(name)
   local adapter = neobar.get(name)
-  if not adapter then
-    return
-  end
-  if not is_open(name) then
+  if not adapter or not is_open(name) then
     return
   end
   if type(adapter.close) == "function" then
     pcall(adapter.close)
   else
-    -- toggle-style open()
-    pcall(adapter.open)
+    pcall(adapter.open) -- toggle-style
   end
+end
+
+--- Whether two side lists overlap.
+local function shares_side(sides_a, sides_b)
+  local set = {}
+  for _, s in ipairs(sides_a) do
+    set[s] = true
+  end
+  for _, s in ipairs(sides_b) do
+    if set[s] then
+      return true
+    end
+  end
+  return false
 end
 
 --- Open the named adapter, enforcing exclusive-per-side when configured.
@@ -69,24 +87,27 @@ function M.open(name)
   end
 
   local opts = neobar.opts() or {}
-  local side = M.side_for(name)
+  local sides = M.sides_for(name)
   local exclusive = opts.exclusive ~= false
 
   if exclusive then
-    local current = active[side]
-    if current and current ~= name and is_open(current) then
-      close_tool(current)
+    for other_name, _ in pairs(neobar.list()) do
+      if other_name ~= name and is_open(other_name) then
+        if shares_side(sides, M.sides_for(other_name)) then
+          close_tool(other_name)
+        end
+      end
     end
   end
 
-  -- If this tool is already open, still call open() so toggle-style
-  -- adapters can focus/close as their own API defines; callers that
-  -- want pure focus can check is_open first.
   pcall(adapter.open)
-  active[side] = name
+
+  for _, side in ipairs(sides) do
+    active[side] = name
+  end
 end
 
----@param side? "left"|"right"|"bottom"|"top"
+---@param side? string
 ---@return string|nil
 function M.active(side)
   if side then
